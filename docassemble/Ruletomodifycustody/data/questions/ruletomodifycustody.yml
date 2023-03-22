@@ -1,0 +1,554 @@
+---
+include:
+  - docassemble.AssemblyLine:assembly_line.yml
+---
+metadata:
+  title: |
+    Ruletomodifycustody
+  short title: |
+    Ruletomodifycustody
+  tags:
+    - ES-00-00-00-00
+    - FA-00-00-00-00
+  authors:
+    - Joey
+---
+mandatory: True
+comment: |
+  Global interview metadata
+variable name: interview_metadata["ruletomodifycustody"]
+data:
+  al_weaver_version: "1.8.0"
+  generated on: "2023-03-08"
+  title: >-
+    Ruletomodifycustody
+  short title: >-
+    Ruletomodifycustody
+  description: |-
+    Ruletomodifycustody
+  allowed courts: 
+    - "District Court"
+    - "Probate and Family Court"
+  categories:
+    - "ES-00-00-00-00"
+    - "FA-00-00-00-00"
+  typical role: "unknown"
+  generate download screen: True
+---
+code: |
+  interview_metadata['main_interview_key'] =  'ruletomodifycustody'
+---
+code: |
+  # This controls the default country and list of states in address field questions
+  AL_DEFAULT_COUNTRY = "US"
+---
+code: |
+  # This controls the default state in address field questions
+  AL_DEFAULT_STATE = "LA"
+---
+code: |
+  github_repo_name =  'docassemble-Ruletomodifycustody'
+---
+code: |
+  interview_short_title = "File a Ruletomodifycustody"
+---
+code: |
+  al_form_type = "existing_case" 
+---
+objects:
+  - children: ALPeopleList.using(ask_number=True, target_number=number_of_children, complete_attribute="complete")
+  - users: ALPeopleList.using(ask_number=True,target_number=1)
+  - other_parties: ALPeopleList.using(ask_number=True,target_number=1)
+  - court_list: ALCourtLoader.using(file_name='JDCs_by_parish.xlsx')
+  - attorney: ALPeopleList.using(ask_number=True,target_number=1)
+---
+sections:
+  - review_ruletomodifycustody: Review your answers
+---
+#################### Interview order #####################
+comment: |
+  Controls order and branching logic for questions specific to this form
+id: interview_order_ruletomodifycustody
+code: |
+  # Set the allowed courts for this interview
+  allowed_courts = interview_metadata["ruletomodifycustody"]["allowed courts"]
+  nav.set_section("review_ruletomodifycustody")
+  # Below sets the user_role and user_ask_role by asking a question.
+  # You can set user_ask_role directly instead to either 'plaintiff' or 'defendant'
+  type_of_court
+  if not (type_of_court != 'District court' or type_of_court != 'Juvenile court'):
+    users.gather()
+  if (type_of_court == 'Out-of-state' and registered_out_of_state_order == True):
+    users.gather()
+  elif (type_of_court == 'Out-of-state' and registered_out_of_state_order == False): 
+    stop_screen_for_out_of_state
+  users[0].address.address
+  other_parties.gather()
+  other_parties[0].address.address
+  plantiff_or_defendant_attorney
+  if (plantiff_or_defendant_attorney):
+    attorney[0].address.address
+  else:
+    number_of_children
+  if number_of_children > 0:
+    number_of_children = children.target_number
+  else:
+     stop_screen_for_no_children
+  requested_modifications
+  trial_court
+  trial_court_index
+  set_parts(subtitle=str(users))
+  set_progress(20)
+  interview_order_ruletomodifycustody = True
+---
+###################### Main order ######################
+comment: |
+  This block includes the logic for standalone interviews.
+  Delete mandatory: True to include in another interview
+mandatory: True
+code: |
+  al_intro_screen
+  ruletomodifycustody_intro
+  interview_order_ruletomodifycustody
+  signature_date
+  # Store anonymous data for analytics / statistics
+  store_variables_snapshot(
+      persistent=True,
+      data={
+          "zip": showifdef("users[0].address.zip"),
+          "reached_interview_end": True,
+      },
+  )
+  ruletomodifycustody_download
+---
+comment: |
+  This question is used to introduce your interview. Please customize
+id: Ruletomodifycustody
+continue button field: ruletomodifycustody_intro
+question: |
+  What is Needed
+subquestion: |
+  What is needed to change custody depends on how the previous custody order was decided. Judgments are decided in two ways:
+
+  1. by the parties' agreement or consent (settlement).
+  2. by the judge after a contradictory hearing (trial).
+
+  If you aren't sure how the previous judgment was decided, read the Custody Judgment carefully to find out. 
+---
+code: |
+  children[i].name.first
+  children[i].birthdate
+  children[i].complete = True
+---
+progress: 100
+question: |
+  Sorry, you cannot proceed with this interview.
+subquestion: |
+  You are not able to continue this interview due to you and the defendant having any children.
+buttons:
+  - Exit: exit
+  - Restart: restart
+event: stop_screen_for_no_children
+---
+progress: 100
+question: |
+  Sorry, you cannot proceed with this interview.
+subquestion: |
+  Since your custody judgment has not been registered with a Louisiana court, you will need to use this [Form Letter to Register Foreign or Out-of-State Custody Order](https://www.lasc.org/rules/dist.ct/Title_IV/APPENDIX_29.5.pdf). For this form, you will need: 
+  
+  1. a letter or other document requesting registration of the custody order
+  2. two (2) copies, including one (1) certified copy, of the custody order
+  3. a notarized statement that to the best of the knowledge and belief of the person seeking registration, the order has not been modified
+  4. the name and address of the person seeking registration and any parent or person acting as a parent who has been awarded custody or visitation in the custody order requested to be registered. (Not necessary in cases of emergency jurisdiction)
+  
+  After these documents are collected, deliver them by mail or by hand to the appropriate state court.
+buttons:
+  - Exit: exit
+  - Restart: restart
+event: stop_screen_for_out_of_state
+---
+id: qualifies_to_continue
+code: |
+  qualifies_to_continue = registered_out_of_state_order is True and type_of_court ['Out-of-state']
+---
+id: petitioner_or_defendant
+question: |
+  Who was the petitioner in the prior case?
+subquestion: |
+  ${ collapse_template(help_user_ask_role_template) }
+fields: 
+  - no label: user_ask_role
+    datatype: radio
+    choices:
+      - Me: plaintiff
+      - Someone else: defendant
+---
+template: help_user_ask_role_template
+subject: |
+  How do I know?
+content: |
+  If you were the first person to file a form in the case, you 
+  started the case. You are the "Plaintiff" or the "Petitioner."
+
+  If you were responding to a case or court papers someone else filed, you are the "Defendant" or the "Respondent."
+---
+sets:
+  - other_parties[0].address.address
+  - other_parties[0].address.city
+  - other_parties[0].address.county
+  - other_parties[0].address.zip
+  - other_parties[0].address.unit
+  - other_parties[0].address.state
+  - other_parties[0].address.country
+id: persons address
+generic object: ALIndividual
+question: |
+  What is ${ other_parties[0].possessive('address') }?
+fields:
+  - code: |
+      other_parties[0].address_fields(show_county=True, country_code=AL_DEFAULT_COUNTRY, default_state=AL_DEFAULT_STATE)
+---
+id: Attorney Name
+sets:
+  - attorney[i].name.first
+  - attorney[i].name.middle
+  - attorney[i].name.last
+  - attorney[i].suffix
+question: |
+  Attorney Information
+fields:
+  - "Does ${ other_parties[0].name.first }'s have an attorney?": plantiff_or_defendant_attorney
+    datatype: yesnoradio
+  - First name: attorney[0].name.first
+    show if: 
+      variable: plantiff_or_defendant_attorney
+      is: True
+  - Middle name: attorney[0].name.middle
+    required: False
+    show if: 
+      variable: plantiff_or_defendant_attorney
+      is: True
+  - Last name: attorney[0].name.last
+    show if: 
+      variable: plantiff_or_defendant_attorney
+      is: True
+  - Suffix: attorney[0].name.suffix
+    show if: 
+      variable: plantiff_or_defendant_attorney
+      is: True
+    required: False
+  - "Phone number": attorney_phone_number
+    datatype: text
+    show if: 
+      variable: plantiff_or_defendant_attorney
+      is: True
+---
+id: your name
+sets:
+    - users[0].name.first
+    - users[0].name.last
+    - users[0].name.middle
+    - users[0].name.suffix
+question:  |
+  What is your name?
+fields:
+  - code: |
+      users[0].name_fields()
+  - "Phone number": users[0].phone_number
+validation code: |
+  if not phone_number_is_valid(users[0].phone_number):
+    validation_error("Please enter a phone number in the format (xxx)xxx-xxxx", field="users[0].phone_number")
+  users[0].phone_number = phone_number_formatted(users[0].phone_number)      
+---
+sets:
+  - other_parties[i].name.first
+  - other_parties[i].name.last
+  - other_parties[i].name.middle
+  - other_parties[i].name.suffix
+id: names of opposing parties
+question: |
+  % if user_started_case:
+  What was the name of the **defendant**?
+  % else:
+  What was the name of the ${ ordinal(i) } **plaintiff**?
+  % endif
+fields:
+  - code: |
+      other_parties[i].name_fields(person_or_business='person')
+  - "Phone number": other_parties[i].phone_number
+validation code: |
+  if not phone_number_is_valid(other_parties[i].phone_number):
+    validation_error("Please enter a phone number in the format (xxx)xxx-xxxx", field="other_parties[i].phone_number")
+  other_parties[i].phone_number = phone_number_formatted(other_parties[i].phone_number)
+---
+id: Where prior judgment was rendered?
+question: |
+  About Your Custody Order
+fields:
+  - "Which type of court was the prior judgment rendered?": type_of_court
+    datatype: radio
+    choices:
+      - District court: district_court
+      - Juvenile court: juvenile_court
+      - Out-of-state: out_of_state_court
+  - "Has the custody judgment that was rendered out of state registered with a Louisiana court?": registered_out_of_state_order
+    datatype: yesnoradio
+    show if:
+      variable: type_of_court
+      is: out_of_state_court
+---
+id: Prior Judgment
+question: |
+  Prior Judgment
+fields:
+  - "How many children (between you and the defendant) would you like to change custody for?": number_of_children
+    datatype: integer
+  - "Who did the judgment designate as the domicilary parent?": domicilary_parent
+    datatype: radio
+    choices:
+      - Me
+      - ${ other_parties[0].name.full() }
+  - "What were the custodial periods for the non-domiciliary parent?": custodial_periods
+    datatype: area
+---
+id: Judgment Mods
+question: |
+  Judgment Modifications
+fields:
+  - "How would you like the prior judgment to be modified?": requested_modifications
+    datatype: checkboxes
+    none of the above: False
+    choices:
+      - Designating the Mover as the domiciliary parent
+      - Granting the Mover more specified and shared visitation
+      - Restricting the custodial periods (visitation) of the Respondent
+      - Granting the Mover sole custody
+      - Other
+  - "What other modification would you like to add?": other_modification
+    required: False
+    datatype: area
+  - "What is your reason for these modifications?": reason_for_modification
+    datatype: area
+---
+id: Filing Options
+question: |
+  Filing Options
+fields:
+  - "In what parish would you like to file your petition?": trial_court_index
+    code: |
+      court_list.filter_courts(None)
+  - "Would you like to file and prosecute ${ italic('in forma pauperis') }, where you will be granted all general and equitable relief?": forma_pauperis
+    datatype: yesnoradio
+    help: ${ italic('Forma pauperis') } is the ability to proceed in court without payment or usual fees associated with the lawsuit.
+---
+code: |
+  trial_court = court_list.as_court('trial_court', trial_court_index[0])
+---
+id: preview ruletomodifycustody
+question: |
+  Preview your form before you sign it
+subquestion: |
+  Here is a preview of the form you will sign on the next page.   
+  
+  ${ al_court_bundle.as_pdf(key='preview') }
+
+  Click the image to open it in a new tab. Click the "Edit answers" button
+  to edit your answers.
+
+  ${ action_button_html(url_action('review_ruletomodifycustody'), label='Edit answers', color='info') }
+  
+  Remember to come back to this window to continue and sign your form.
+continue button field: ruletomodifycustody_preview_question    
+---
+code: |
+  signature_fields = []
+---
+code: |
+  # This is a placeholder for the addresses that will be searched
+  # for matching address to court. Edit if court venue is based on 
+  # a different address than the user's
+  [user.address.address for user in users.complete_elements()]
+  addresses_to_search = [user.address for user in users.complete_elements()]
+---
+id: ruletomodifycustody review screen
+event: review_ruletomodifycustody
+question: |
+  Review your answers
+review:
+  - Edit: child.name.first
+    button: |
+      **Child.name.first**:
+      ${ child.name.first }
+  - Edit: user_phone_number
+    button: |
+      **User phone number**:
+      ${ user_phone_number }
+  - Edit: name
+    button: |
+      **Name**:
+      ${ name }
+  - Edit: other_parties.revisit
+    button: |
+      **Other parties**
+
+      % for item in other_parties:
+        * ${ item }
+      % endfor
+  - Edit: child.birthdate
+    button: |
+      **Child.birthdate**:
+      ${ child.birthdate }
+  - Edit: users.revisit
+    button: |
+      **Users**
+
+      % for item in users:
+        * ${ item }
+      % endfor
+  - Edit: defendants.revisit
+    button: |
+      **Defendants**
+
+      % for item in defendants:
+        * ${ item }
+      % endfor
+  - Edit: petitioners.revisit
+    button: |
+      **Petitioners**
+
+      % for item in petitioners:
+        * ${ item }
+      % endfor
+  - Edit: judicial_district
+    button: |
+      **Judicial district**:
+      ${ judicial_district }
+---
+continue button field: other_parties.revisit
+question: |
+  Edit other_parties
+subquestion: |
+  ${ other_parties.table }
+
+  ${ other_parties.add_action() }
+---
+table: other_parties.table
+rows: other_parties
+columns:
+  - Address: |
+      row_item.address.block() if defined("row_item.address.county") else ""
+  - Name: |
+      row_item.name.full() if defined("row_item.name.first") else ""
+edit:
+  - address.county
+  - name.first
+confirm: True
+---
+continue button field: users.revisit
+question: |
+  Edit users
+subquestion: |
+  ${ users.table }
+
+  ${ users.add_action() }
+---
+table: users.table
+rows: users
+columns:
+  - Name: |
+      row_item.name.full() if defined("row_item.name.first") else ""
+  - Address: |
+      row_item.address.block() if defined("row_item.address.address") else ""
+edit:
+  - name.first
+  - address.address
+confirm: True
+
+---
+continue button field: defendants.revisit
+question: |
+  Edit defendants
+subquestion: |
+  ${ defendants.table }
+
+  ${ defendants.add_action() }
+---
+table: defendants.table
+rows: defendants
+columns:
+  - Name: |
+      row_item.name.full() if defined("row_item.name.first") else ""
+edit:
+  - name.first
+confirm: True
+
+---
+continue button field: petitioners.revisit
+question: |
+  Edit petitioners
+subquestion: |
+  ${ petitioners.table }
+
+  ${ petitioners.add_action() }
+---
+table: petitioners.table
+rows: petitioners
+columns:
+  - Name: |
+      row_item.name.full() if defined("row_item.name.first") else ""
+edit:
+  - name.first
+confirm: True
+
+---
+id: download ruletomodifycustody
+event: ruletomodifycustody_download
+question: |
+  All done
+subquestion: |
+  Thank you ${users}. Your form is ready to download and deliver.
+  
+  View, download and send your form below. Click the "Edit answers" button to fix any mistakes.
+
+  ${ action_button_html(url_action('review_ruletomodifycustody'), label='Edit answers', color='info') }
+  
+  
+  ${ al_user_bundle.download_list_html() }
+  
+
+  ${ al_user_bundle.send_button_html(show_editable_checkbox=True) }
+
+progress: 100
+---
+# ALDocument objects specify the metadata for each template
+objects:
+  - ruletomodifycustody_Post_interview_instructions: ALDocument.using(title="Instructions", filename="ruletomodifycustody_next_steps.docx", enabled=True, has_addendum=False)
+  - ruletomodifycustody_attachment: ALDocument.using(title="Ruletomodifycustody", filename="ruletomodifycustody", enabled=True, has_addendum=False, )
+---
+# Bundles group the ALDocuments into separate downloads, such as for court and for the user
+objects:
+  - al_user_bundle: ALDocumentBundle.using(elements=[ruletomodifycustody_Post_interview_instructions, ruletomodifycustody_attachment], filename="ruletomodifycustody", title="All forms to download for your records", enabled=True)
+  - al_court_bundle: ALDocumentBundle.using(elements=[ruletomodifycustody_attachment],  filename="ruletomodifycustody", title="All forms to deliver to court", enabled=True)
+---
+# Each attachment defines a key in an ALDocument. We use `i` as the placeholder here so the same template is 
+# used for "preview" and "final" keys, and logic in the template checks the value of 
+# `i` to show or hide the user's signature
+attachment:
+  name: Post-interview-Instructions
+  filename: ruletomodifycustody_next_steps
+  docx template file: ruletomodifycustody_next_steps.docx
+  variable name: ruletomodifycustody_Post_interview_instructions[i]
+  skip undefined: True
+---
+attachment:
+  name: ruletomodifycustody
+  filename: ruletomodifycustody
+  variable name: ruletomodifycustody_attachment[i]
+  skip undefined: True
+  docx template file: ruletomodifycustody.docx
+  fields:
+      - "name": ${ trial_court.name }
+      - "judicial_district": ${ trial_court.judicial_district }
+      - "district_attorney": ${ trial_court.district_attorney }
+      - "other_parties_parish": ${ other_parties[0].address.county }
+
