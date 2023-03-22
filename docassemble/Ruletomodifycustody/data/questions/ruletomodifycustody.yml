@@ -76,11 +76,11 @@ code: |
   # Below sets the user_role and user_ask_role by asking a question.
   # You can set user_ask_role directly instead to either 'plaintiff' or 'defendant'
   type_of_court
-  if (type_of_court == 'District court' or type_of_court == 'Juvenile court'):
+  if (type_of_court == 'district court' or type_of_court == 'juvenile court'):
     users.gather()
-  if (type_of_court == 'Out-of-state' and registered_out_of_state_order == True):
+  if (type_of_court == 'out of state court' and registered_out_of_state_order == True):
     users.gather()
-  elif (type_of_court == 'Out-of-state' and registered_out_of_state_order == False): 
+  elif (type_of_court == 'out of state court' and registered_out_of_state_order == False): 
     stop_screen_for_out_of_state
   users[0].address.address
   other_parties.gather()
@@ -289,14 +289,14 @@ fields:
   - "Which type of court was the prior judgment rendered?": type_of_court
     datatype: radio
     choices:
-      - District court: district_court
-      - Juvenile court: juvenile_court
-      - Out-of-state: out_of_state_court
+      - District court: district court
+      - Juvenile court: juvenile court
+      - Out-of-state: out of state court
   - "Has the custody judgment that was rendered out of state registered with a Louisiana court?": registered_out_of_state_order
     datatype: yesnoradio
     show if:
       variable: type_of_court
-      is: out_of_state_court
+      is: out of state court
 ---
 id: Prior Judgment
 question: |
