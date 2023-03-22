@@ -76,7 +76,7 @@ code: |
   # Below sets the user_role and user_ask_role by asking a question.
   # You can set user_ask_role directly instead to either 'plaintiff' or 'defendant'
   type_of_court
-  if not (type_of_court != 'District court' or type_of_court != 'Juvenile court'):
+  if (type_of_court == 'District court' or type_of_court == 'Juvenile court'):
     users.gather()
   if (type_of_court == 'Out-of-state' and registered_out_of_state_order == True):
     users.gather()
@@ -94,6 +94,7 @@ code: |
     number_of_children = children.target_number
   else:
      stop_screen_for_no_children
+  children.gather()
   requested_modifications
   trial_court
   trial_court_index
