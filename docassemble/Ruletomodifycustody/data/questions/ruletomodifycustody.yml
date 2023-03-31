@@ -76,17 +76,22 @@ code: |
   # Below sets the user_role and user_ask_role by asking a question.
   # You can set user_ask_role directly instead to either 'plaintiff' or 'defendant'
   type_of_court
-  if (type_of_court == 'district court' or type_of_court == 'juvenile court'):
+  if (type_of_court == 'in louisiana' and consent_order == 'consensual'):
     users.gather()
-  if (type_of_court == 'out of state court' and registered_out_of_state_order == True):
+  if (type_of_court == 'out of state court' and registered_out_of_state_order == True and consent_order == 'consensual'):
     users.gather()
-  elif (type_of_court == 'out of state court' and registered_out_of_state_order == False): 
+  elif (type_of_court == 'out of state court' and registered_out_of_state_order == False and consent_order == 'consensual'): 
     stop_screen_for_out_of_state
+  elif (type_of_court == 'out of state court' and registered_out_of_state_order == True and consent_order == 'nonconsensual'):
+    stop_screen_for_nonconsenual_order
+  elif (type_of_court == 'out of state court' and consent_order == 'nonconsensual' and registered_out_of_state_order == False):
+    stop_for_nonconsensual_and_out_of_state
   users[0].address.address
   other_parties.gather()
   other_parties[0].address.address
   plantiff_or_defendant_attorney
   if (plantiff_or_defendant_attorney):
+    attorney.gather()
     attorney[0].address.address
   else:
     number_of_children
@@ -96,6 +101,7 @@ code: |
      stop_screen_for_no_children
   children.gather()
   requested_modifications
+  reason_for_modification
   trial_court
   trial_court_index
   set_parts(subtitle=str(users))
@@ -138,7 +144,6 @@ subquestion: |
 ---
 code: |
   children[i].name.first
-  children[i].birthdate
   children[i].complete = True
 ---
 progress: 100
@@ -150,6 +155,35 @@ buttons:
   - Exit: exit
   - Restart: restart
 event: stop_screen_for_no_children
+---
+progress: 100
+question: |
+  Sorry, you cannot proceed with this interview.
+subquestion: |
+  You are not able to continue this interview due to you trying to modify a nonconsenual order.
+buttons:
+  - Exit: exit
+  - Restart: restart
+event: stop_screen_for_nonconsenual_order
+---
+progress: 100
+question: |
+  Sorry, you cannot proceed with this interview for a couple reasons.
+subquestion: |
+  Reason #1: You have not registered the prior judgment in a Louisiana court.
+  Since your custody judgment has not been registered with a Louisiana court, you will need to use this [Form Letter to Register Foreign or Out-of-State Custody Order](https://www.lasc.org/rules/dist.ct/Title_IV/APPENDIX_29.5.pdf). For this form, you will need: 
+  
+  1) a letter or other document requesting registration of the custody order
+  2) two (2) copies, including one (1) certified copy, of the custody order
+  3) a notarized statement that to the best of the knowledge and belief of the person seeking registration, the order has not been modified
+  4) the name and address of the person seeking registration and any parent or person acting as a parent who has been awarded custody or visitation in the custody order requested to be registered. (Not necessary in cases of emergency jurisdiction)
+  5) after these documents are collected, deliver them by mail or by hand to the appropriate state court.
+  
+  Reason #2: You are not able to continue this interview due to you trying to modify a nonconsenual order.
+buttons:
+  - Exit: exit
+  - Restart: restart
+event: stop_for_nonconsensual_and_out_of_state
 ---
 progress: 100
 question: |
@@ -168,10 +202,42 @@ buttons:
   - Restart: restart
 event: stop_screen_for_out_of_state
 ---
-id: qualifies_to_continue
-code: |
-  qualifies_to_continue = registered_out_of_state_order is True and type_of_court ['Out-of-state']
+id: multiple children names and birthdates
+sets:
+  - children[i].name.first
+  - children[i].name.last
+  - children[i].name.middle
+  - children[i].name.suffix
+question: |
+   % if hasattr(children, 'ask_number') and children.ask_number and children.target_number == 1:
+   Child's name
+   % else:
+   About the ${ ordinal(i) } child
+   % endif
+fields:
+  - code: |
+      children[i].name_fields()
+  - Birthdate: children[i].birthdate
+    datatype: BirthDate
 ---
+#id: one child name and birthdate
+#sets:
+#  - children[0].name.first
+#  - children[0].name.last
+#  - children[0].name.middle
+#  - children[0].name.suffix
+#question: |
+#  % if hasattr(children, 'ask_number') and children.ask_number and children.target_number == 1:
+#  Child's name
+#  % else:
+#  About the first child
+#  % endif
+#fields:
+#  - code: |
+#      children[0].name_fields()
+#  - Birthdate: children[0].birthdate
+#    datatype: BirthDate
+#---
 id: petitioner_or_defendant
 question: |
   Who was the petitioner in the prior case?
@@ -210,39 +276,32 @@ fields:
       other_parties[0].address_fields(show_county=True, country_code=AL_DEFAULT_COUNTRY, default_state=AL_DEFAULT_STATE)
 ---
 id: Attorney Name
-sets:
-  - attorney[i].name.first
-  - attorney[i].name.middle
-  - attorney[i].name.last
-  - attorney[i].suffix
+#sets:
+#  - attorney[i].name.first
+#  - attorney[i].name.middle
+#  - attorney[i].name.last
+#  - attorney[i].suffix
 question: |
   Attorney Information
 fields:
-  - "Does ${ other_parties[0].name.first }'s have an attorney?": plantiff_or_defendant_attorney
+  - "Does ${ other_parties[0].name.first } have an attorney?": plantiff_or_defendant_attorney
     datatype: yesnoradio
+---
+id: Attorney name
+question: |
+  What is ${ other_parties[0].name.first }'s attorney's name?
+fields:
   - First name: attorney[0].name.first
-    show if: 
-      variable: plantiff_or_defendant_attorney
-      is: True
   - Middle name: attorney[0].name.middle
     required: False
-    show if: 
-      variable: plantiff_or_defendant_attorney
-      is: True
   - Last name: attorney[0].name.last
-    show if: 
-      variable: plantiff_or_defendant_attorney
-      is: True
   - Suffix: attorney[0].name.suffix
-    show if: 
-      variable: plantiff_or_defendant_attorney
-      is: True
     required: False
-  - "Phone number": attorney_phone_number
-    datatype: text
-    show if: 
-      variable: plantiff_or_defendant_attorney
-      is: True
+  - "Phone number": attorney[0].phone_number
+validation code: |
+  if not phone_number_is_valid(attorney[0].phone_number):
+    validation_error("Please enter a phone number in the format (xxx)xxx-xxxx", field="attorney[0].phone_number")
+  attorney[0].phone_number = phone_number_formatted(attorney[0].phone_number) 
 ---
 id: your name
 sets:
@@ -259,7 +318,7 @@ fields:
 validation code: |
   if not phone_number_is_valid(users[0].phone_number):
     validation_error("Please enter a phone number in the format (xxx)xxx-xxxx", field="users[0].phone_number")
-  users[0].phone_number = phone_number_formatted(users[0].phone_number)      
+  users[0].phone_number = phone_number_formatted(users[0].phone_number)
 ---
 sets:
   - other_parties[i].name.first
@@ -271,7 +330,7 @@ question: |
   % if user_started_case:
   What was the name of the **defendant**?
   % else:
-  What was the name of the ${ ordinal(i) } **plaintiff**?
+  What was the name of the **plaintiff**?
   % endif
 fields:
   - code: |
@@ -284,32 +343,46 @@ validation code: |
 ---
 id: Where prior judgment was rendered?
 question: |
-  About Your Custody Order
+  Making sure you qualify
 fields:
-  - "Which type of court was the prior judgment rendered?": type_of_court
+  - "Where was your prior judgment rendered?": type_of_court
     datatype: radio
     choices:
-      - District court: district court
-      - Juvenile court: juvenile court
+      - In Louisiana: in louisiana
       - Out-of-state: out of state court
   - "Has the custody judgment that was rendered out of state registered with a Louisiana court?": registered_out_of_state_order
     datatype: yesnoradio
     show if:
       variable: type_of_court
       is: out of state court
+  - "Are you seeking to modify a consent order?": consent_order
+    datatype: radio
+    choices:
+      - Yes: consensual
+      - No: nonconsensual
 ---
 id: Prior Judgment
 question: |
   Prior Judgment
 fields:
-  - "How many children (between you and the defendant) would you like to change custody for?": number_of_children
+  - "What was the dock number of your case?": docket_number
+    datatype: integer
+    hide if: dont_know_docket_number
+  - "I don't know the case number.": dont_know_docket_number
+    datatype: yesno
+  - "Which division was your case?": division
+    datatype: integer
+    hide if: dont_know_division_number
+  - "I don't know the division of my case.": dont_know_division_number
+    datatype: yesno
+  - "How many children (between you and the defendant) was involved in the prior judgment?": number_of_children
     datatype: integer
   - "Who did the judgment designate as the domicilary parent?": domicilary_parent
     datatype: radio
     choices:
       - Me
       - ${ other_parties[0].name.full() }
-  - "What were the custodial periods for the non-domiciliary parent?": custodial_periods
+  - "What were the assigned time periods for the non-domiciliary parent?": custodial_periods
     datatype: area
 ---
 id: Judgment Mods
@@ -320,14 +393,26 @@ fields:
     datatype: checkboxes
     none of the above: False
     choices:
-      - Designating the Mover as the domiciliary parent
-      - Granting the Mover more specified and shared visitation
-      - Restricting the custodial periods (visitation) of the Respondent
-      - Granting the Mover sole custody
-      - Other
-  - "What other modification would you like to add?": other_modification
-    required: False
+      - Designating the Mover as the domiciliary parent: designating_the_mover
+      - Granting the Mover more specified and shared visitation: more_specified_visitation
+      - Restricting the custodial periods (visitation) of the Respondent: restrictions
+      - Granting the Mover sole custody: sole_custody
+      - Other: other_mod
+  - "What other modifications you would like to add?": other_modifications
+   # datatype: yesnoradio
+    #show if:
+     # variable: requested_modficiations
+     # is: other_mod
+  #- no label: additional_mod
     datatype: area
+    show if: other_mod
+---
+id: reasons 
+question: |
+  Reason for Modifications
+subquestion: |
+  Describe what has happened that justifies a change of the judgment. You will have to provide proof of these events that happened after the judgment was rendered.
+fields:
   - "What is your reason for these modifications?": reason_for_modification
     datatype: area
 ---
@@ -338,9 +423,21 @@ fields:
   - "In what parish would you like to file your petition?": trial_court_index
     code: |
       court_list.filter_courts(None)
+  - "Will you be able to pay the costs of this suit?": ability_to_pay_fees
+    datatype: yesnoradio
   - "Would you like to file and prosecute ${ italic('in forma pauperis') }, where you will be granted all general and equitable relief?": forma_pauperis
     datatype: yesnoradio
     help: ${ italic('Forma pauperis') } is the ability to proceed in court without payment or usual fees associated with the lawsuit.
+    show if: 
+      variable: ability_to_pay_fees
+      is: False
+  - "How would like the court to assign court costs?": petitioner_further_prays
+    input type: radio
+    choices:
+      - Petitioner be cast with the costs of these proceedings: petitioner_cast_with_costs
+      - Defendant be cast with the costs of these proceedings: defendant_cast_with_costs
+      - The parties share the costs of these proceedings in equal amounts: share_costs
+      - Each party bears their own court costs and attorney’s fees: bears_own_costs
 ---
 code: |
   trial_court = court_list.as_court('trial_court', trial_court_index[0])
