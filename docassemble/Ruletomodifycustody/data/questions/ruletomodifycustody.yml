@@ -91,17 +91,27 @@ code: |
   other_parties[0].address.address
   plantiff_or_defendant_attorney
   if (plantiff_or_defendant_attorney):
-    attorney.gather()
+    attorney[0].name.first
     attorney[0].address.address
+    docket_number
   else:
+    docket_number
     number_of_children
+    #if (docket_number > 0 and division > 0):
+    #  number_of_children
+    #elif (dont_know_docket_number == True and division > 0 and dont_know_division_number == True):
+    #  number_of_children
+    #elif (dont_know_docket_number == True and docket_number > 0 and dont_know_division_number == True):
+    #  number_of_children
+    #if (dont_know_docket_number == True and dont_know_division_number == True):
+      #number_of_children
   if number_of_children > 0:
     number_of_children = children.target_number
   else:
      stop_screen_for_no_children
   children.gather()
   requested_modifications
-  reason_for_modification
+  reason_for_modifications
   trial_court
   trial_court_index
   set_parts(subtitle=str(users))
@@ -143,7 +153,7 @@ subquestion: |
   If you aren't sure how the previous judgment was decided, read the Custody Judgment carefully to find out. 
 ---
 code: |
-  children[i].name.first
+  children[i].birthdate
   children[i].complete = True
 ---
 progress: 100
@@ -365,7 +375,7 @@ id: Prior Judgment
 question: |
   Prior Judgment
 fields:
-  - "What was the dock number of your case?": docket_number
+  - "What was the docket number of your case?": docket_number
     datatype: integer
     hide if: dont_know_docket_number
   - "I don't know the case number.": dont_know_docket_number
@@ -375,12 +385,26 @@ fields:
     hide if: dont_know_division_number
   - "I don't know the division of my case.": dont_know_division_number
     datatype: yesno
+  - "In what parish was the judgment rendered?": parish_of_prior
+    code: |
+      court_list.filter_courts(None)
+  - "Date of prior judgment": date_of_judgment
+    datatype: date
+validation code: |
+  # This should be safe too
+  if dont_know_docket_number:
+    docket_number = ''
+---
+id: prior arrangements
+question: |
+  Prior Judgment Arrangements
+fields:
   - "How many children (between you and the defendant) was involved in the prior judgment?": number_of_children
     datatype: integer
   - "Who did the judgment designate as the domicilary parent?": domicilary_parent
     datatype: radio
     choices:
-      - Me
+      - ${ users[0].name.full() }
       - ${ other_parties[0].name.full() }
   - "What were the assigned time periods for the non-domiciliary parent?": custodial_periods
     datatype: area
@@ -393,19 +417,16 @@ fields:
     datatype: checkboxes
     none of the above: False
     choices:
-      - Designating the Mover as the domiciliary parent: designating_the_mover
-      - Granting the Mover more specified and shared visitation: more_specified_visitation
-      - Restricting the custodial periods (visitation) of the Respondent: restrictions
-      - Granting the Mover sole custody: sole_custody
+      - Designating the Mover as the domiciliary parent
+      - Granting the Mover more specified and shared visitation
+      - Restricting the custodial periods (visitation) of the Respondent
+      - Granting the Mover sole custody
       - Other: other_mod
   - "What other modifications you would like to add?": other_modifications
-   # datatype: yesnoradio
-    #show if:
-     # variable: requested_modficiations
-     # is: other_mod
-  #- no label: additional_mod
     datatype: area
-    show if: other_mod
+    show if:
+      variable: requested_modifications['other_mod']
+      is: True
 ---
 id: reasons 
 question: |
@@ -421,8 +442,71 @@ question: |
   Filing Options
 fields:
   - "In what parish would you like to file your petition?": trial_court_index
-    code: |
-      court_list.filter_courts(None)
+    choices:
+      - 'Acadia'
+      - 'Allen'
+      - 'Ascension'
+      - 'Assumption'
+      - 'Avoyelles'
+      - 'Beauregard'
+      - 'Bienville'
+      - 'Bossier'
+      - 'Caddo'
+      - 'Calcasieu'
+      - 'Caldwell'
+      - 'Cameron'
+      - 'Catahoula'
+      - 'Claiborne'
+      - 'Concordia'
+      - 'De Soto'
+      - 'East Baton Rouge'
+      - 'East Carroll'
+      - 'East Feliciana'
+      - 'Evangeline'
+      - 'Franklin'
+      - 'Grant'
+      - 'Iberia'
+      - 'Iberville'
+      - 'Jackson'
+      - 'Jefferson'
+      - 'Jefferson Davis'
+      - 'La Salle'
+      - 'Lafayette'
+      - 'Lafourche'
+      - 'Lincoln'
+      - 'Livingston'
+      - 'Madison'
+      - 'Morehouse'
+      - 'Natchitoches'
+      - 'Orleans'
+      - 'Ouachita'
+      - 'Plaquemines'
+      - 'Pointe Coupee'
+      - 'Rapides'
+      - 'Red River'
+      - 'Richland'
+      - 'Sabine'
+      - 'St. Bernard'
+      - 'St. Charles'
+      - 'St. Helena'
+      - 'St. James'
+      - 'St. John The Baptist'
+      - 'St. Landry'
+      - 'St. Martin'
+      - 'St. Mary'
+      - 'St. Tammany'
+      - 'Tangipahoa'
+      - 'Tensas'
+      - 'Terrebonne'
+      - 'Union'
+      - 'Vermilion'
+      - 'Vernon'
+      - 'Washington'
+      - 'Webster'
+      - 'West Baton Rouge'
+      - 'West Carroll'
+      - 'West Feliciana'
+      - 'Winn'
   - "Will you be able to pay the costs of this suit?": ability_to_pay_fees
     datatype: yesnoradio
   - "Would you like to file and prosecute ${ italic('in forma pauperis') }, where you will be granted all general and equitable relief?": forma_pauperis
@@ -648,5 +732,4 @@ attachment:
       - "name": ${ trial_court.name }
       - "judicial_district": ${ trial_court.judicial_district }
       - "district_attorney": ${ trial_court.district_attorney }
-      - "other_parties_parish": ${ other_parties[0].address.county }
 
